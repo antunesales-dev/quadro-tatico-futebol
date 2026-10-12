@@ -1,0 +1,74 @@
+<!DOCTYPE html><html lang="pt-PT"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"><title>Quadro Tático – Traquinas</title>
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}body{margin:0;font-family:system-ui,sans-serif;background:#123;color:#fff;touch-action:none;user-select:none}
+header{padding:8px;display:flex;flex-wrap:wrap;gap:6px;align-items:center;justify-content:center}
+button,select{font-size:18px;padding:10px 14px;border-radius:12px;border:0;background:#2a4;color:#fff;font-weight:700}
+button.on{background:#fc0;color:#000}.sec{background:#456}
+#info{text-align:center;font-size:16px;padding:0 10px 6px;min-height:22px;color:#cfe}
+#wrap{display:flex;justify-content:center;padding:4px}svg{background:#2e8b3a;border-radius:10px;max-width:100%;touch-action:none}
+.pl text{font-weight:800;pointer-events:none}
+</style></head><body>
+<header>
+<select id="fmt"><option value="F5">F5</option><option value="F7">F7</option><option value="F11">F11</option></select>
+<select id="form"></select>
+<button id="opp" class="sec">👥 Adversários</button>
+<button id="draw" class="sec">✏️ Desenhar</button>
+<button id="undo" class="sec">↩️ Anular</button>
+<button id="clr" class="sec">🧽 Limpar</button>
+<button id="rst" class="sec">🔄 Repor</button>
+</header>
+<div id="info"></div><div id="wrap"><svg id="p"></svg></div>
+<script>
+// Pitch sizes in metres (w x l), vertical pitch, our team attacks upward
+const P={F5:[20,40],F7:[40,60],F11:[68,105]};
+// positions as [x,y] fractions (0..1), y=1 is our goal
+const F={
+F5:{"1-2-1 Losango":{d:"Um atrás, dois nos lados, um à frente. Como um diamante! 💎",p:[[.5,.95],[.5,.75],[.2,.55],[.8,.55],[.5,.3]]},
+"2-2 Quadrado":{d:"Dois a defender, dois a atacar. Todos ajudam! 🟩",p:[[.5,.95],[.3,.72],[.7,.72],[.3,.38],[.7,.38]]},
+"2-1-1 Seta":{d:"Dois atrás, um no meio, um ponta-de-lança lá à frente. ➡️",p:[[.5,.95],[.3,.75],[.7,.75],[.5,.52],[.5,.28]]},
+"1-1-2 Ataque":{d:"Um defende, um liga o jogo, dois marcam golos! ⚽",p:[[.5,.95],[.5,.75],[.5,.55],[.3,.32],[.7,.32]]}},
+F7:{"2-3-1":{d:"Dois defesas, três no meio, um avançado.",p:[[.5,.96],[.32,.8],[.68,.8],[.18,.58],[.5,.6],[.82,.58],[.5,.35]]},
+"3-2-1":{d:"Três defesas, dois médios, um avançado.",p:[[.5,.96],[.2,.8],[.5,.82],[.8,.8],[.35,.6],[.65,.6],[.5,.36]]},
+"2-1-2-1":{d:"Losango no meio, muito equilibrado.",p:[[.5,.96],[.32,.82],[.68,.82],[.5,.68],[.2,.55],[.8,.55],[.5,.36]]}},
+F11:{"4-3-3":{d:"Quatro defesas, três médios, três avançados.",p:[[.5,.97],[.12,.82],[.37,.85],[.63,.85],[.88,.82],[.3,.65],[.5,.7],[.7,.65],[.15,.42],[.5,.38],[.85,.42]]},
+"4-4-2":{d:"Duas linhas de quatro e dois pontas-de-lança.",p:[[.5,.97],[.12,.82],[.37,.85],[.63,.85],[.88,.82],[.12,.62],[.37,.65],[.63,.65],[.88,.62],[.38,.42],[.62,.42]]}}};
+const svg=document.getElementById('p'),NS='http://www.w3.org/2000/svg';
+let S=JSON.parse(localStorage.getItem('qt')||'null')||{fmt:'F5'};let hist=[],drawing=false;
+function save(){localStorage.setItem('qt',JSON.stringify(S))}
+function snap(){hist.push(JSON.stringify(S));if(hist.length>50)hist.shift()}
+function setup(f,name,keepNames){const [w,l]=P[f];const fo=F[f][name||Object.keys(F[f])[0]];name=name||Object.keys(F[f])[0];
+const old=S.players||[];S.fmt=f;S.form=name;S.players=fo.p.map((q,i)=>({x:q[0]*w,y:q[1]*l,n:(keepNames&&old[i])?old[i].n:String(i+1)}));
+S.opp=fo.p.map(q=>({x:(1-q[0])*w,y:(1-q[1])*l}));S.ball={x:w/2,y:l/2};S.lines=[];}
+if(!S.players)setup('F5');
+function el(t,a,par){const e=document.createElementNS(NS,t);for(const k in a)e.setAttribute(k,a[k]);(par||svg).appendChild(e);return e}
+function render(){const [w,l]=P[S.fmt];const m=2;svg.setAttribute('viewBox',`${-m} ${-m} ${w+2*m} ${l+2*m}`);
+const r=w/(S.fmt=='F11'?28:S.fmt=='F7'?22:14), sw=w/200+.1;const hh=innerHeight-document.querySelector('header').offsetHeight-document.getElementById('info').offsetHeight-16;svg.style.width=Math.min(innerWidth-10,hh*(w+2*m)/(l+2*m))+'px';svg.innerHTML='';
+const L={fill:'none',stroke:'#fff','stroke-width':sw};el('rect',{x:0,y:0,width:w,height:l,...L});el('line',{x1:0,y1:l/2,x2:w,y2:l/2,...L});
+el('circle',{cx:w/2,cy:l/2,r:S.fmt=='F11'?9.15:S.fmt=='F7'?6:3,...L});
+const ab=S.fmt=='F11'?[40.3,16.5,7.3]:S.fmt=='F7'?[24,9,5]:[12,6,3];
+for(const y0 of[0,l]){const s=y0?-1:1;el('rect',{x:(w-ab[0])/2,y:y0?l-ab[1]:0,width:ab[0],height:ab[1],...L});
+el('rect',{x:(w-ab[2])/2,y:y0?l-ab[1]/2.6:0,width:ab[2],height:ab[1]/2.6,...L});el('rect',{x:(w-ab[2])/2,y:y0?l:-1.2,width:ab[2],height:1.2,fill:'#fff'});}
+for(const ln of S.lines){if(ln.length<2)continue;const pl=el('polyline',{points:ln.map(p=>p.x+','+p.y).join(' '),fill:'none',stroke:'#fc0','stroke-width':sw*3,'stroke-linecap':'round','stroke-linejoin':'round','marker-end':'url(#ar)'});}
+const d=el('defs',{});const mk=el('marker',{id:'ar',markerWidth:4,markerHeight:4,refX:2,refY:2,orient:'auto'},d);el('path',{d:'M0,0 L4,2 L0,4z',fill:'#fc0'},mk);
+if(S.showOpp)S.opp.forEach((o,i)=>tok(o,r*.85,'#d33','',()=>S.opp[i]));
+S.players.forEach((p,i)=>tok(p,r,i==0?'#f80':'#1565c0',p.n,()=>S.players[i],i));
+tok(S.ball,r*.5,'#fff','',()=>S.ball);
+document.getElementById('info').textContent=F[S.fmt][S.form].d+' (Toca num jogador para mudar o nome)';
+document.getElementById('opp').classList.toggle('on',!!S.showOpp);document.getElementById('draw').classList.toggle('on',drawing);}
+function pt(e){const b=svg.createSVGPoint();b.x=e.clientX;b.y=e.clientY;return b.matrixTransform(svg.getScreenCTM().inverse())}
+function tok(o,r,c,txt,get,idx){const g=el('g',{class:'pl'});el('circle',{cx:o.x,cy:o.y,r,fill:c,stroke:'#fff','stroke-width':r/8},g);
+if(txt)el('text',{x:o.x,y:o.y+r*.35,'text-anchor':'middle','font-size':txt.length>2?r*.7:r,fill:'#fff'},g).textContent=txt;
+g.addEventListener('pointerdown',e=>{if(drawing)return;e.stopPropagation();snap();const s=pt(e),ox=o.x,oy=o.y;let moved=false;
+const mv=ev=>{const q=pt(ev);if(Math.hypot(q.x-s.x,q.y-s.y)>r*.3)moved=true;const t=get();t.x=ox+q.x-s.x;t.y=oy+q.y-s.y;render()};
+const up=()=>{removeEventListener('pointermove',mv);removeEventListener('pointerup',up);if(!moved){hist.pop();if(idx!=null){const n=prompt('Nome ou número do jogador:',S.players[idx].n);if(n!==null&&n.trim()){snap();S.players[idx].n=n.trim().slice(0,8)}}}save();render()};
+addEventListener('pointermove',mv);addEventListener('pointerup',up)});}
+svg.addEventListener('pointerdown',e=>{if(!drawing)return;snap();const ln=[pt(e)];S.lines.push(ln);
+const mv=ev=>{const q=pt(ev),a=ln[ln.length-1];if(Math.hypot(q.x-a.x,q.y-a.y)>.5){ln.push(q);render()}};
+const up=()=>{removeEventListener('pointermove',mv);removeEventListener('pointerup',up);save();render()};addEventListener('pointermove',mv);addEventListener('pointerup',up)});
+const fmt=document.getElementById('fmt'),form=document.getElementById('form');
+function fillForms(){form.innerHTML=Object.keys(F[S.fmt]).map(k=>`<option>${k}</option>`).join('');form.value=S.form;fmt.value=S.fmt}
+fmt.onchange=()=>{snap();setup(fmt.value);fillForms();save();render()};form.onchange=()=>{snap();setup(S.fmt,form.value,true);save();render()};
+opp.onclick=()=>{snap();S.showOpp=!S.showOpp;save();render()};draw.onclick=()=>{drawing=!drawing;render()};
+clr.onclick=()=>{snap();S.lines=[];save();render()};undo.onclick=()=>{if(hist.length){S=JSON.parse(hist.pop());fillForms();save();render()}};
+rst.onclick=()=>{snap();setup(S.fmt,S.form);save();render()};onresize=render;fillForms();render();
+</script></body></html>
